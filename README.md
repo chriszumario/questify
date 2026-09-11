@@ -1,230 +1,230 @@
 # Questify
 
-Questify is a multilingual SaaS application for creating quizzes and polls, generating content with AI, reviewing analytics, and selling a Pro subscription through Polar.
+Questify es una aplicación SaaS multilingüe para crear cuestionarios (quizzes) y encuestas (polls), generar contenido con IA, consultar analíticas y vender suscripciones Pro a través de Polar.
 
-This guide explains how to install Questify locally, configure its services, prepare the database, create the first administrator, and deploy the application.
+Esta guía explica cómo instalar Questify localmente, configurar sus servicios, preparar la base de datos, crear el primer administrador y desplegar la aplicación.
 
-## Technology stack
+## Stack tecnológico
 
-- Next.js 16 and React 19
+- Next.js 16 y React 19
 - TypeScript
-- Better Auth with email/password and optional Google OAuth
-- Drizzle ORM with Turso/libSQL
-- Google Gemini or OpenAI for AI generation
-- Polar for subscription payments
-- next-intl with English and Spanish support
+- Better Auth con correo/contraseña y Google OAuth opcional
+- Drizzle ORM con Turso/libSQL
+- Google Gemini u OpenAI para la generación con IA
+- Polar para suscripciones y pagos
+- next-intl con soporte para inglés y español
 
-## Requirements
+## Requisitos
 
-Install the following software before continuing:
+Instala el siguiente software antes de continuar:
 
-- [Node.js](https://nodejs.org/) 20.9 or newer
-- [pnpm](https://pnpm.io/installation)
-- A [Turso](https://turso.tech/) database
-- Git, if you are cloning the project from a repository
+- [Node.js](https://nodejs.org/) 20.9 o superior
+- [Bun](https://bun.sh/)
+- Una base de datos en [Turso](https://turso.tech/)
+- Git, si vas a clonar el proyecto desde un repositorio
 
-The following accounts are optional and only required for their corresponding features:
+Las siguientes cuentas son opcionales y solo se requieren para sus características correspondientes:
 
-- [Google Cloud Console](https://console.cloud.google.com/) for Google sign-in
-- [Google AI Studio](https://aistudio.google.com/) for Gemini
-- [OpenAI](https://platform.openai.com/) for OpenAI models
-- [Polar](https://polar.sh/) for Pro subscriptions
+- [Google Cloud Console](https://console.cloud.google.com/) para inicio de sesión con Google
+- [Google AI Studio](https://aistudio.google.com/) para Gemini
+- [OpenAI](https://platform.openai.com/) para modelos de OpenAI
+- [Polar](https://polar.sh/) para suscripciones Pro
 
-## 1. Install the project
+## 1. Instalar el proyecto
 
-Clone or extract the project, open a terminal in its root directory, and install the dependencies:
+Clona o extrae el proyecto, abre una terminal en su directorio raíz e instala las dependencias:
 
 ```bash
-pnpm install
+bun install
 ```
 
-## 2. Configure environment variables
+## 2. Configurar variables de entorno
 
-Create a local `.env` file from the included example.
+Crea un archivo local `.env` a partir del ejemplo incluido.
 
-macOS or Linux:
+En macOS o Linux:
 
 ```bash
 cp .env.example .env
 ```
 
-Windows PowerShell:
+En Windows PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Open `.env` and configure the values described below.
+Abre `.env` y configura los valores descritos a continuación.
 
-### Required variables
+### Variables obligatorias
 
-| Variable              | Description                                                                                          |
-| --------------------- | ---------------------------------------------------------------------------------------------------- |
-| `BETTER_AUTH_SECRET`  | Secret used by Better Auth to protect authentication data. Generate one with `openssl rand -hex 32`. |
-| `BETTER_AUTH_URL`     | Application origin. Use `http://localhost:3000` locally.                                             |
-| `TURSO_DATABASE_URL`  | The libSQL URL shown in the Turso database dashboard.                                                |
-| `TURSO_AUTH_TOKEN`    | An authentication token for the Turso database.                                                      |
-| `NEXT_PUBLIC_APP_URL` | Public application origin. Use `http://localhost:3000` locally.                                      |
+| Variable              | Descripción                                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------------------- |
+| `BETTER_AUTH_SECRET`  | Secreto utilizado por Better Auth para proteger los datos de autenticación. Genera uno con `openssl rand -hex 32`. |
+| `BETTER_AUTH_URL`     | Origen de la aplicación. Usa `http://localhost:3000` en local.                                             |
+| `TURSO_DATABASE_URL`  | URL de libSQL mostrada en el panel de la base de datos de Turso.                                          |
+| `TURSO_AUTH_TOKEN`    | Token de autenticación para la base de datos de Turso.                                                     |
+| `NEXT_PUBLIC_APP_URL` | Origen público de la aplicación. Usa `http://localhost:3000` en local.                                    |
 
-Example:
+Ejemplo:
 
 ```dotenv
-BETTER_AUTH_SECRET=replace_with_a_long_random_secret
+BETTER_AUTH_SECRET=reemplaza_por_un_secreto_largo_y_aleatorio
 BETTER_AUTH_URL=http://localhost:3000
 
-TURSO_DATABASE_URL=libsql://your-database-name.turso.io
-TURSO_AUTH_TOKEN=your_turso_auth_token
+TURSO_DATABASE_URL=libsql://nombre-de-tu-base-de-datos.turso.io
+TURSO_AUTH_TOKEN=tu_token_de_autenticacion_turso
 
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-Never commit `.env`, access tokens, API keys, or webhook secrets to source control.
+Nunca subas `.env`, tokens de acceso, claves de API o secretos de webhooks al control de versiones.
 
-### Google sign-in (optional)
+### Inicio de sesión con Google (opcional)
 
-Create an OAuth 2.0 Web application in Google Cloud and add this local authorized redirect URI:
+Crea una aplicación web OAuth 2.0 en Google Cloud y agrega esta URI de redirección local autorizada:
 
 ```text
 http://localhost:3000/api/auth/callback/google
 ```
 
-Then add the credentials to `.env`:
+Luego agrega las credenciales a `.env`:
 
 ```dotenv
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_CLIENT_ID=tu_google_client_id
+GOOGLE_CLIENT_SECRET=tu_google_client_secret
 ```
 
-If these variables are omitted, email and password authentication remains available and the Google sign-in option is disabled.
+Si omites estas variables, la autenticación con correo y contraseña seguirá disponible y la opción de inicio de sesión con Google estará deshabilitada.
 
-### AI generation (optional)
+### Generación con IA (opcional)
 
-Configure at least one provider if you want to use AI generation:
+Configura al menos un proveedor si deseas utilizar la generación con IA:
 
 ```dotenv
-GOOGLE_GENERATIVE_AI_API_KEY=your_gemini_api_key
-OPENAI_API_KEY=your_openai_api_key
+GOOGLE_GENERATIVE_AI_API_KEY=tu_api_key_de_gemini
+OPENAI_API_KEY=tu_api_key_de_openai
 ```
 
-After creating an administrator, select the active provider and model from **Dashboard > Admin > Platform Settings > AI Configuration**.
+Después de crear un administrador, selecciona el proveedor activo y el modelo desde **Dashboard > Admin > Platform Settings > AI Configuration**.
 
-### Polar subscriptions (optional)
+### Suscripciones con Polar (opcional)
 
-Questify only requires one Polar environment variable:
+Questify solo requiere una variable de entorno para Polar:
 
 ```dotenv
-POLAR_ACCESS_TOKEN=polar_oat_your_organization_access_token
+POLAR_ACCESS_TOKEN=polar_oat_tu_token_de_acceso_de_organizacion
 ```
 
-Create an organization access token in the Polar dashboard. The token must belong to the same Polar environment selected in Questify.
+Crea un token de acceso de organización en el panel de Polar. El token debe pertenecer al mismo entorno de Polar seleccionado en Questify.
 
-After creating the administrator:
+Después de crear el administrador:
 
-1. Open **Dashboard > Admin > Platform Settings > Payments**.
-2. Select **Sandbox** while testing.
-3. Configure the price, currency, billing interval, and Pro features.
-4. Save the settings.
+1. Abre **Dashboard > Admin > Platform Settings > Payments**.
+2. Selecciona **Sandbox** durante las pruebas.
+3. Configura el precio, la moneda, el intervalo de facturación y las funciones Pro.
+4. Guarda la configuración.
 
-Questify creates or updates the Polar product, recurring price, and public webhook automatically through the Polar SDK. Product IDs and webhook secrets do not need to be added to `.env`.
+Questify crea o actualiza el producto de Polar, el precio recurrente y el webhook público automáticamente mediante el SDK de Polar. No es necesario agregar IDs de productos ni secretos de webhooks a `.env`.
 
-## 3. Prepare the database
+## 3. Preparar la base de datos
 
-Create the tables in the Turso database from the current Drizzle schema:
+Crea las tablas en la base de datos de Turso a partir del esquema actual de Drizzle:
 
 ```bash
-pnpm db:push
+bun run db:push
 ```
 
-Useful database commands:
+Comandos útiles para la base de datos:
 
-| Command            | Purpose                                                               |
-| ------------------ | --------------------------------------------------------------------- |
-| `pnpm db:generate` | Generate SQL migrations after a schema change.                        |
-| `pnpm db:migrate`  | Apply generated migrations.                                           |
-| `pnpm db:push`     | Synchronize the current schema directly with the configured database. |
-| `pnpm db:studio`   | Open Drizzle Studio.                                                  |
-| `pnpm db:check`    | Validate the migration files.                                         |
+| Comando               | Propósito                                                               |
+| --------------------- | ----------------------------------------------------------------------- |
+| `bun run db:generate` | Generar migraciones SQL tras modificar el esquema.                      |
+| `bun run db:migrate`  | Aplicar las migraciones generadas.                                      |
+| `bun run db:push`     | Sincronizar el esquema actual directamente con la base de datos configurada. |
+| `bun run db:studio`   | Abrir Drizzle Studio.                                                   |
+| `bun run db:check`    | Validar los archivos de migración.                                      |
 
-## 4. Start Questify
+## 4. Iniciar Questify
 
-Run the development server:
+Ejecuta el servidor de desarrollo:
 
 ```bash
-pnpm dev
+bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Questify will route the application to one of its supported locales:
+Abre [http://localhost:3000](http://localhost:3000). Questify enrutará la aplicación a uno de sus idiomas compatibles:
 
-- English: `http://localhost:3000/en`
-- Spanish: `http://localhost:3000/es`
+- Inglés: `http://localhost:3000/en`
+- Español: `http://localhost:3000/es`
 
-## 5. Create the first administrator
+## 5. Crear el primer administrador
 
-The standard seed promotes the first registered user to administrator and activates the Pro plan for that account.
+El seed estándar asciende al primer usuario registrado a administrador y activa el plan Pro para esa cuenta.
 
-1. Start Questify and register a user with email/password or Google.
-2. Keep the application running and open a second terminal.
-3. Run:
+1. Inicia Questify y registra un usuario mediante correo/contraseña o Google.
+2. Mantén la aplicación ejecutándose y abre una segunda terminal.
+3. Ejecuta:
 
 ```bash
-pnpm db:seed
+bun run db:seed
 ```
 
-4. Refresh the application. The account will now have access to the admin panel.
+4. Recarga la aplicación. La cuenta ahora tendrá acceso al panel de administración.
 
-Run this seed only after at least one user exists. It updates the first user returned by the database.
+Ejecuta este seed únicamente después de que exista al menos un usuario registrado. Actualiza al primer usuario devuelto por la base de datos.
 
-## Quality checks
+## Comprobaciones de calidad
 
-Before deploying or submitting changes, run:
+Antes de desplegar o enviar cambios, ejecuta:
 
 ```bash
-pnpm typecheck
-pnpm lint
-pnpm build
+bun run typecheck
+bun run lint
+bun run build
 ```
 
-## Production deployment
+## Despliegue en producción
 
-Questify can be deployed to Vercel or another Node.js hosting provider.
+Questify se puede desplegar en Vercel o en cualquier otro proveedor de alojamiento de Node.js.
 
-1. Create a production Turso database and apply the schema or migrations.
-2. Add the environment variables from `.env` to the hosting provider. Use production secrets and URLs.
-3. Set both `BETTER_AUTH_URL` and `NEXT_PUBLIC_APP_URL` to the final HTTPS origin.
-4. If Google sign-in is enabled, add this production redirect URI in Google Cloud:
+1. Crea una base de datos de Turso para producción y aplica el esquema o las migraciones.
+2. Agrega las variables de entorno de `.env` en el proveedor de alojamiento. Usa secretos y URLs de producción.
+3. Configura tanto `BETTER_AUTH_URL` como `NEXT_PUBLIC_APP_URL` con el origen HTTPS final.
+4. Si el inicio de sesión con Google está habilitado, agrega esta URI de redirección de producción en Google Cloud:
 
    ```text
-   https://your-domain.com/api/auth/callback/google
+   https://tu-dominio.com/api/auth/callback/google
    ```
 
-5. Deploy the application.
-6. Register the first production user and run the seed against the production database if that account should become the administrator.
-7. Open the payment settings, select **Production**, and save them with a production Polar organization token.
+5. Despliega la aplicación.
+6. Registra al primer usuario de producción y ejecuta el seed en la base de datos de producción si deseas que esa cuenta sea el administrador.
+7. Abre la configuración de pagos, selecciona **Production** y guarda con un token de organización de Polar de producción.
 
-Saving payment settings from a public HTTPS deployment allows Questify to register this webhook automatically:
+Guardar la configuración de pagos desde un despliegue HTTPS público permite a Questify registrar este webhook automáticamente:
 
 ```text
-https://your-domain.com/api/polar/webhooks
+https://tu-dominio.com/api/polar/webhooks
 ```
 
-## Troubleshooting
+## Solución de problemas
 
-### Environment changes are not applied
+### Los cambios de entorno no se aplican
 
-Restart the development server after editing `.env`.
+Reinicia el servidor de desarrollo después de editar `.env`.
 
-### Google returns a redirect URI error
+### Google devuelve un error de URI de redirección
 
-Verify that the Google OAuth redirect URI exactly matches the application origin and ends with `/api/auth/callback/google`.
+Verifica que la URI de redirección de Google OAuth coincida exactamente con el origen de la aplicación y termine en `/api/auth/callback/google`.
 
-### The admin panel is not visible
+### El panel de administración no es visible
 
-Register a user before running `pnpm db:seed`, then sign out and sign in again if the existing session still contains the previous role.
+Registra un usuario antes de ejecutar `bun run db:seed`, luego cierra sesión e inicia sesión nuevamente si la sesión existente aún conserva el rol anterior.
 
-### Polar requests fail
+### Las peticiones a Polar fallan
 
-Confirm that `POLAR_ACCESS_TOKEN` is an organization access token and that it belongs to the Sandbox or Production environment selected in the payment settings.
+Confirma que `POLAR_ACCESS_TOKEN` sea un token de acceso de organización y que pertenezca al entorno Sandbox o Production seleccionado en los ajustes de pago.
 
-### The database command cannot connect
+### El comando de base de datos no puede conectarse
 
-Check `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`, then confirm that the token has access to the selected Turso database.
+Verifica `TURSO_DATABASE_URL` y `TURSO_AUTH_TOKEN`, luego confirma que el token tenga acceso a la base de datos seleccionada de Turso.
